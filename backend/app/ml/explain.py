@@ -1,1 +1,5 @@
-"""SHAP feature contributions."""
+"""Explain stub."""
+
+
+def explain():
+    pass
