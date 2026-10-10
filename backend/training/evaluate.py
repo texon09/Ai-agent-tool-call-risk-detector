@@ -209,18 +209,33 @@ def main():
     parser.add_argument("--figures-dir", required=True)
     parser.add_argument("--smoke-split")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--only", choices=["lofo"])
     args = parser.parse_args()
 
     os.makedirs(args.metrics_dir, exist_ok=True)
     os.makedirs(args.figures_dir, exist_ok=True)
 
-    out_file = os.path.join(
-        args.metrics_dir,
-        "smoke_val.json" if args.smoke_split == "val" else "test_evaluated_v1.json",
-    )
-    if not args.force and not args.smoke_split and os.path.exists(out_file):
-        print(f"Error: {out_file} exists. Use --force to overwrite.")
-        sys.exit(1)
+    if args.only == "lofo":
+        guard_file = os.path.join(args.metrics_dir, ".lofo_evaluated_v2")
+        if not args.force and os.path.exists(guard_file):
+            print(f"Error: {guard_file} exists. Use --force to overwrite.")
+            sys.exit(1)
+        res_file = os.path.join(args.metrics_dir, "results.json")
+        backup = os.path.join(args.metrics_dir, "results_before_lofo_fix.json")
+        import shutil
+        if os.path.exists(res_file):
+            shutil.copy(res_file, backup)
+        with open(guard_file, "w") as f:
+            f.write("ran\n")
+        out_file = res_file
+    else:
+        out_file = os.path.join(
+            args.metrics_dir,
+            "smoke_val.json" if args.smoke_split == "val" else "results.json",
+        )
+        if not args.force and not args.smoke_split and os.path.exists(out_file):
+            print(f"Error: {out_file} exists. Use --force to overwrite.")
+            sys.exit(1)
 
     manifest, models = load_model(args.model_dir, args.data_dir)
     features = load_feature_list(args.data_dir)
@@ -232,12 +247,12 @@ def main():
         os.path.join(args.data_dir, "val_features.csv"), features
     )
 
-    if args.smoke_split == "val":
-        test_file = "val_features.csv"
-    else:
-        test_file = "test_features.csv"
-
-    X_ts, y_ts_str, meta_ts = load_split(os.path.join(args.data_dir, test_file), features)
+    if args.only != "lofo":
+        if args.smoke_split == "val":
+            test_file = "val_features.csv"
+        else:
+            test_file = "test_features.csv"
+        X_ts, y_ts_str, meta_ts = load_split(os.path.join(args.data_dir, test_file), features)
 
     # Compute thresholds on VAL
     ens_th = manifest["operating_points"]["5%"]["threshold"]
@@ -248,121 +263,140 @@ def main():
     p_xgb_v = models["xgboost"].predict_proba(X_val)[:, 2]
     xgb_th = threshold_at_fpr(y_val_str, p_xgb_v, 0.05)
 
-    mask = get_dedup_mask(X_tr, X_ts)
-
-    X_ts_nr = X_ts[mask]
-    y_ts_str_nr = y_ts_str[mask]
-    meta_ts_nr = meta_ts[mask]
-
     results = {}
+    if args.only == "lofo":
+        backup = os.path.join(args.metrics_dir, "results_before_lofo_fix.json")
+        if os.path.exists(backup):
+            with open(backup) as f:
+                results = json.load(f)
     warnings = []
 
-    removed = len(X_ts) - len(X_ts_nr)
-    nr_counts = {c: int(np.sum(y_ts_str_nr == c)) for c in CLASS_ORDER}
+    if args.only != "lofo":
+        mask = get_dedup_mask(X_tr, X_ts)
+        X_ts_nr = X_ts[mask]
+        y_ts_str_nr = y_ts_str[mask]
+        meta_ts_nr = meta_ts[mask]
+        removed = len(X_ts) - len(X_ts_nr)
+        nr_counts = {c: int(np.sum(y_ts_str_nr == c)) for c in CLASS_ORDER}
 
-    # How many removed had a train twin with different label?
-    # Match vectors
-    train_set_labels = {}
-    for i, row in enumerate(X_tr.values):
-        train_set_labels[tuple(row)] = y_tr_str[i]
+        # How many removed had a train twin with different label?
+        # Match vectors
+        train_set_labels = {}
+        for i, row in enumerate(X_tr.values):
+            train_set_labels[tuple(row)] = y_tr_str[i]
 
-    diff_label = 0
-    for i, row in enumerate(X_ts.values):
-        if not mask[i]:
-            tup = tuple(row)
-            if tup in train_set_labels and train_set_labels[tup] != y_ts_str[i]:
-                diff_label += 1
+        diff_label = 0
+        for i, row in enumerate(X_ts.values):
+            if not mask[i]:
+                tup = tuple(row)
+                if tup in train_set_labels and train_set_labels[tup] != y_ts_str[i]:
+                    diff_label += 1
 
-    results["dedup_info"] = {
-        "removed_rows": removed,
-        "remaining_class_mix": nr_counts,
-        "removed_with_diff_label": diff_label,
-    }
+        results["dedup_info"] = {
+            "removed_rows": removed,
+            "remaining_class_mix": nr_counts,
+            "removed_with_diff_label": diff_label,
+        }
 
-    e1_full = e1_routine(
-        X_ts, y_ts_str, meta_ts["task_id"].values, models, manifest, dt_th, rf_th, xgb_th, ens_th
-    )
-    e1_nr = e1_routine(
-        X_ts_nr,
-        y_ts_str_nr,
-        meta_ts_nr["task_id"].values,
-        models,
-        manifest,
-        dt_th,
-        rf_th,
-        xgb_th,
-        ens_th,
-    )
-
-    results["E1"] = {"full": e1_full, "non_repeated": e1_nr}
-
-    if (
-        abs(
-            e1_full["Ensemble"].get("recall_at_thresh", 0)
-            - e1_nr["Ensemble"].get("recall_at_thresh", 0)
+        e1_full = e1_routine(
+            X_ts,
+            y_ts_str,
+            meta_ts["task_id"].values,
+            models,
+            manifest,
+            dt_th,
+            rf_th,
+            xgb_th,
+            ens_th,
         )
-        > 0.05
-        or abs(e1_full["Ensemble"].get("macro_f1", 0) - e1_nr["Ensemble"].get("macro_f1", 0)) > 0.05
-    ):
-        w = "TEST SCORES DEPEND ON TRAIN/TEST DUPLICATES"
-        print(w)
-        warnings.append(w)
+        e1_nr = e1_routine(
+            X_ts_nr,
+            y_ts_str_nr,
+            meta_ts_nr["task_id"].values,
+            models,
+            manifest,
+            dt_th,
+            rf_th,
+            xgb_th,
+            ens_th,
+        )
 
-    if nr_counts.get("HIGH-RISK", 0) < 50:
-        w = "NON-REPEATED VIEW IS SMALL: CIs ARE UNRELIABLE"
-        print(w)
-        warnings.append(w)
+        results["E1"] = {"full": e1_full, "non_repeated": e1_nr}
 
-    if (
-        e1_full["Ensemble"].get("recall_at_thresh", 0) >= 0.99
-        and e1_full["Ensemble"].get("safe_fpr_at_thresh", 1.0) <= 0.01
-    ):
-        w = "SUSPICIOUSLY PERFECT: check for label leakage or shared generator assumptions"
-        print(w)
-        warnings.append(w)
+        if (
+            abs(
+                e1_full["Ensemble"].get("recall_at_thresh", 0)
+                - e1_nr["Ensemble"].get("recall_at_thresh", 0)
+            )
+            > 0.05
+            or abs(
+                e1_full["Ensemble"].get("macro_f1", 0) - e1_nr["Ensemble"].get("macro_f1", 0)
+            )
+            > 0.05
+        ):
+            w = "TEST SCORES DEPEND ON TRAIN/TEST DUPLICATES"
+            print(w)
+            warnings.append(w)
 
-    if (
-        e1_nr["Ensemble"].get("recall_at_thresh", 0) >= 0.99
-        and e1_nr["Ensemble"].get("safe_fpr_at_thresh", 1.0) <= 0.01
-    ):
-        w = "SUSPICIOUSLY PERFECT: check for label leakage or shared generator assumptions"
-        print(w)
-        warnings.append(w)
+        if nr_counts.get("HIGH-RISK", 0) < 50:
+            w = "NON-REPEATED VIEW IS SMALL: CIs ARE UNRELIABLE"
+            print(w)
+            warnings.append(w)
 
-    results["warnings"] = warnings
+        if (
+            e1_full["Ensemble"].get("recall_at_thresh", 0) >= 0.99
+            and e1_full["Ensemble"].get("safe_fpr_at_thresh", 1.0) <= 0.01
+        ):
+            w = "SUSPICIOUSLY PERFECT: check for label leakage or shared generator assumptions"
+            print(w)
+            warnings.append(w)
+
+        if (
+            e1_nr["Ensemble"].get("recall_at_thresh", 0) >= 0.99
+            and e1_nr["Ensemble"].get("safe_fpr_at_thresh", 1.0) <= 0.01
+        ):
+            w = "SUSPICIOUSLY PERFECT: check for label leakage or shared generator assumptions"
+            print(w)
+            warnings.append(w)
+
+        results["warnings"] = warnings
+
+        results["E2"] = {"full": e1_full["E2"], "non_repeated": e1_nr["E2"]}
+        del e1_full["E2"]
+        del e1_nr["E2"]
 
     if args.force:
         results["force_used"] = True
 
-    results["E2"] = {"full": e1_full["E2"], "non_repeated": e1_nr["E2"]}
-    del e1_full["E2"]
-    del e1_nr["E2"]
-
     # E3 LOFO
     # E4 External
     # E5 Adversarial
-    results["E3"] = "not computed: smoke split or skipped"
-    results["E4"] = "not computed: smoke split or skipped"
-    results["E5"] = "not computed: smoke split or skipped"
+    if args.only != "lofo":
+        results["E3"] = "not computed: smoke split or skipped"
+        results["E4"] = "not computed: smoke split or skipped"
+        results["E5"] = "not computed: smoke split or skipped"
 
-    if not args.smoke_split:
+    if not args.smoke_split and (args.only == "lofo" or not args.only):
         # E3
+        import glob
+        test_files = glob.glob(os.path.join(args.data_dir, "lofo_test_*.csv"))
+        fams = [
+            os.path.basename(f).replace("lofo_test_", "").replace(".csv", "")
+            for f in test_files
+        ]
+        if len(fams) != 5:
+            raise ValueError(f"Expected 5 LOFO families, found {len(fams)}")
         e3_res = {}
-        for fam in [
-            "data_exfiltration",
-            "lateral_movement",
-            "resource_hijacking",
-            "privilege_escalation",
-            "defense_evasion",
-        ]:
+        for fam in fams:
             tr_path = os.path.join(args.data_dir, f"lofo_train_{fam}.csv")
             ts_path = os.path.join(args.data_dir, f"lofo_test_{fam}.csv")
-            if not os.path.exists(tr_path):
-                continue
+            if not os.path.exists(tr_path) or not os.path.exists(ts_path):
+                raise ValueError(f"Missing LOFO files for family {fam}")
             X_l_tr, y_l_tr_str, _ = load_split(tr_path, features)
             X_l_ts, y_l_ts_str, _ = load_split(ts_path, features)
 
-            y_l_tr_int = np.array([get_class_map()[v] for v in y_l_tr_str])
+            print(f"Encoding labels with manifest class_order: {manifest['class_order']}")
+            y_l_tr_int = np.array([manifest['class_order'].index(v) for v in y_l_tr_str])
             dt = DecisionTreeClassifier(**manifest["hyperparameters"]["dt"], random_state=42)
             dt.fit(X_l_tr, y_l_tr_int)
             rf = RandomForestClassifier(**manifest["hyperparameters"]["rf"], random_state=42)
@@ -377,10 +411,23 @@ def main():
             iso = IsolationForest(random_state=42)
             iso.fit(X_l_tr[y_l_tr_str == "SAFE"])
             s_iso = iso.decision_function(X_l_tr[y_l_tr_str == "SAFE"])
-            l_iso_thresh = float(np.percentile(s_iso, 5)) if len(s_iso) > 0 else 0.0
+            # tie-aware threshold for iso
+            l_iso_thresh = 0.0
+            if len(s_iso) > 0:
+                best_t = -float("inf")
+                for t in np.sort(np.unique(s_iso)):
+                    if np.sum(s_iso < t) / len(s_iso) <= 0.05:
+                        best_t = t
+                    else:
+                        break
+                l_iso_thresh = float(best_t) if best_t != -float("inf") else float(np.min(s_iso))
 
-            p_rf_ts = rf.predict_proba(X_l_ts)[:, 2]
-            p_xgb_ts = xgb_m.predict_proba(X_l_ts)[:, 2]
+            assert list(dt.classes_) == [0, 1, 2], f"dt classes: {dt.classes_}"
+            assert list(rf.classes_) == [0, 1, 2], f"rf classes: {rf.classes_}"
+            hr_idx = manifest["class_order"].index("HIGH-RISK")
+
+            p_rf_ts = rf.predict_proba(X_l_ts)[:, hr_idx]
+            p_xgb_ts = xgb_m.predict_proba(X_l_ts)[:, hr_idx]
             raw = (
                 manifest["ensemble_weights"]["rf"] * p_rf_ts
                 + manifest["ensemble_weights"]["xgb"] * p_xgb_ts
@@ -438,6 +485,35 @@ def main():
                 else 0.0
             )
 
+            if args.only == "lofo":
+                print(f"--- LOFO: {fam} ---")
+                
+                dt_preds = [manifest["class_order"][int(p)] for p in dt.predict(X_l_ts)]
+                rf_preds = [manifest["class_order"][int(p)] for p in rf.predict(X_l_ts)]
+                xgb_preds = [manifest["class_order"][int(p)] for p in xgb_m.predict(X_l_ts)]
+                
+                from collections import Counter
+                print(f"  DT class counts: {dict(Counter(dt_preds))}")
+                print(f"  RF class counts: {dict(Counter(rf_preds))}")
+                print(f"  XGB class counts: {dict(Counter(xgb_preds))}")
+                
+                print(
+                    f"  Ensemble (Full) - (a) HR: {a_rec:.4f}, (b) NS: {b_rec:.4f}, "
+                    f"(c) NS+Anom: {c_rec:.4f}"
+                )
+                print(
+                    f"  Ensemble (NR)   - (a) HR: {a_rec_nr:.4f}, (b) NS: {b_rec_nr:.4f}, "
+                    f"(c) NS+Anom: {c_rec_nr:.4f}"
+                )
+                
+                iso_tr_safe = iso.decision_function(X_l_tr[y_l_tr_str == "SAFE"])
+                iso_tr_flag_rate = (
+                    np.mean(iso_tr_safe < l_iso_thresh) if len(iso_tr_safe) > 0 else 0.0
+                )
+                iso_ts_flag_rate = np.mean(iso_ts < l_iso_thresh) if len(iso_ts) > 0 else 0.0
+                print(f"  ISO flag rate on train SAFE: {iso_tr_flag_rate:.4f} (max 0.05)")
+                print(f"  ISO flag rate on test: {iso_ts_flag_rate:.4f}")
+
             e3_res[fam] = {
                 "full": {"pred_hr": a_rec, "pred_not_safe": b_rec, "pred_ns_or_anom": c_rec},
                 "non_repeated": {
@@ -448,7 +524,10 @@ def main():
                 "note": "FPR is not measurable",
             }
         results["E3"] = e3_res
+        if args.only == "lofo":
+            results["E3_note"] = "corrected after class-index bug; earlier LOFO values invalid"
 
+    if args.only != "lofo":
         # E4 External
         e4_path = os.path.join(args.data_dir, "kaggle_external_features.csv")
         if os.path.exists(e4_path):
