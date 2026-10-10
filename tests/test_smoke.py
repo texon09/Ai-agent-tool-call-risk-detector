@@ -1,4 +1,5 @@
 """Tests for smoke."""
+
 import json
 import os
 
@@ -11,7 +12,6 @@ import backend.app.ml  # noqa: F401
 import backend.app.mock_tools  # noqa: F401
 import backend.app.policy  # noqa: F401
 import backend.app.rules  # noqa: F401
-import backend.training  # noqa: F401
 
 
 def test_smoke():

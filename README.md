@@ -32,7 +32,24 @@ make test
 
 ## Make Targets
 - `setup`, `run-api`, `run-ui`, `test`, `lint`, `format`
-- `data`, `train`, `eval` (stubs)
+- `validate-data`, `train`, `eval`
 - `docker-up`, `docker-down`
 
-Status: Skeleton only: no logic, data, or models yet.
+## Training and evaluation
+
+### Requirements
+Ensure you have the exact following library versions installed:
+`numpy==2.4.6`, `pandas==3.0.6`, `scikit-learn==1.9.1`, `xgboost==3.2.0`, `shap==0.51.0`, `joblib==1.6.0`.
+
+### Data
+Data files are expected in `data/processed/`. Features files must strictly contain the 42 feature columns first (in the exact order of the feature list), followed by metadata columns: `plan_id`, `task_id`, `label`, `family`, `difficulty`.
+Data, models, and metrics are never committed to version control; they are shared via drive.
+
+### Pipeline Commands
+1. **Validate Data**: `make validate-data`
+2. **Train Models**: `make train` (defaults to `v2`)
+3. **Evaluate**: `make eval` (defaults to evaluating `v2`)
+
+**Important Notes:**
+- The test evaluation is run-once. The `--force` flag on the evaluation script is for exceptional cases only and its use must be logged.
+- Models located in `artifacts/models/v2` use tie-aware thresholds to strictly enforce safe False Positive Rates (FPR).

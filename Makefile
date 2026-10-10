@@ -17,13 +17,16 @@ format:
 	python -m ruff format .
 
 data:
-	@echo "Not implemented yet"
+	@echo "Data pipeline not implemented yet"
 
 train:
-	@echo "Not implemented yet"
+	.\.venv\Scripts\python.exe -m backend.training.train --data-dir data/processed --out-dir artifacts/models --metrics-dir artifacts/metrics --version v2 --seeds 42 43 44 45 46
 
 eval:
-	@echo "Not implemented yet"
+	.\.venv\Scripts\python.exe -m backend.training.evaluate --data-dir data/processed --model-dir artifacts/models/v2 --metrics-dir artifacts/metrics --figures-dir artifacts/figures
+
+validate-data:
+	.\.venv\Scripts\python.exe -m backend.training.validate_dataset --data-dir data/processed
 
 docker-up:
 	docker compose up --build
