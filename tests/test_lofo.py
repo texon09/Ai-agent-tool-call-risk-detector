@@ -1,6 +1,3 @@
-import glob
-import os
-
 import numpy as np
 from sklearn.tree import DecisionTreeClassifier
 
@@ -29,20 +26,32 @@ def test_manifest_class_order():
     assert preds.shape[1] == 3
 
 
-def test_all_five_families_run():
-    # Just asserting the files exist in data/processed
-    data_dir = "data/processed"
-    if os.path.exists(data_dir):
-        test_files = glob.glob(os.path.join(data_dir, "lofo_test_*.csv"))
-        fams = [
-            os.path.basename(f).replace("lofo_test_", "").replace(".csv", "")
-            for f in test_files
-        ]
-        assert len(fams) == 5
-        assert set(fams) == {
-            "data_exfiltration",
-            "privilege_escalation",
-            "destructive",
-            "credential_harvesting",
-            "injection_triggered",
-        }
+def test_all_five_families_run(tmp_path):
+    import pytest
+
+    from backend.training.evaluate import get_lofo_families
+
+    d = tmp_path / "data"
+    d.mkdir()
+
+    expected = {
+        "data_exfiltration",
+        "privilege_escalation",
+        "destructive",
+        "credential_harvesting",
+        "injection_triggered",
+    }
+    for fam in expected:
+        (d / f"lofo_test_{fam}.csv").touch()
+
+    # Create one unrelated file
+    (d / "unrelated.csv").touch()
+
+    fams = get_lofo_families(str(d))
+    assert set(fams) == expected
+    assert len(fams) == 5
+
+    # Test missing family
+    (d / "lofo_test_destructive.csv").unlink()
+    with pytest.raises(ValueError, match="Expected 5 LOFO families, found 4"):
+        get_lofo_families(str(d))

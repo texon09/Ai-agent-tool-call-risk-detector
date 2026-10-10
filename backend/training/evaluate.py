@@ -201,6 +201,20 @@ def e5_routine(X, y_str, meta, models, manifest, ens_th):
     return {"recall": hr_recall, "fpr": safe_fpr, "misses": misses}
 
 
+def get_lofo_families(data_dir: str) -> list:
+    import glob
+    import os
+
+    test_files = glob.glob(os.path.join(data_dir, "lofo_test_*.csv"))
+    fams = [
+        os.path.basename(f).replace("lofo_test_", "").replace(".csv", "")
+        for f in test_files
+    ]
+    if len(fams) != 5:
+        raise ValueError(f"Expected 5 LOFO families, found {len(fams)}")
+    return fams
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", required=True)
@@ -378,14 +392,7 @@ def main():
 
     if not args.smoke_split and (args.only == "lofo" or not args.only):
         # E3
-        import glob
-        test_files = glob.glob(os.path.join(args.data_dir, "lofo_test_*.csv"))
-        fams = [
-            os.path.basename(f).replace("lofo_test_", "").replace(".csv", "")
-            for f in test_files
-        ]
-        if len(fams) != 5:
-            raise ValueError(f"Expected 5 LOFO families, found {len(fams)}")
+        fams = get_lofo_families(args.data_dir)
         e3_res = {}
         for fam in fams:
             tr_path = os.path.join(args.data_dir, f"lofo_train_{fam}.csv")
