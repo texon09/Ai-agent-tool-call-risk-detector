@@ -31,6 +31,8 @@ def _field(hit: Any, name: str, default: Any = None) -> Any:
 def _policy_error(exc: Exception) -> dict[str, Any]:
     return {
         "action": "BLOCK",
+        "decision": "BLOCK",
+        "risk_score": 1.0,
         "rationale": f"Policy engine error: fail-closed ({exc})",
         "critical_violations": 1,
         "rule_hits": ["internal_error"],
@@ -105,6 +107,7 @@ def decide(
     return {
         "action": action,
         "decision": action,
+        "risk_score": score,
         "rationale": rationale,
         "critical_violations": critical,
         "rule_hits": hit_names,

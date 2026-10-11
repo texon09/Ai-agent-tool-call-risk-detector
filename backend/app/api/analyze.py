@@ -14,12 +14,12 @@ from fastapi import APIRouter
 
 from app.audit.store import AuditStore
 from app.features.extractor import FEATURE_NAMES, extract_features
-from app.ml.ensemble import model_votes, score_risk
+from app.ml.ensemble import get_model_scores, model_votes, score_risk
 from app.ml.loader import load_model
 from app.policy.decision import decide
 from app.rules.engine import RuleEngine
 from app.rules.inspector import ArgumentInspector
-from app.schemas import AnalyzeRequest, AnalyzeResponse
+from app.schemas import AnalyzeRequest, AnalyzeResponse, ModelScores
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -98,23 +98,47 @@ async def analyze_plan(request: AnalyzeRequest) -> AnalyzeResponse:
         manifest, models = _get_ml_models()
         votes: dict[str, Any] = {}
         ml_risk_score = 0.1  # default benign prior if models unavailable
+        ind_scores = {
+            "decision_tree": 0.0,
+            "random_forest": 0.0,
+            "xgboost": 0.0,
+            "isolation_forest": 0.0,
+        }
 
         if models and manifest:
-            rf_prob = float(models["random_forest"].predict_proba(feat_df)[:, 2][0])
-            xgb_prob = float(models["xgboost"].predict_proba(feat_df)[:, 2][0])
-            dt_prob = float(models["decision_tree"].predict_proba(feat_df)[:, 2][0])
+            ind_scores = get_model_scores(feat_df, models, manifest)
+            rf_prob = ind_scores["random_forest"]
+            xgb_prob = ind_scores["xgboost"]
+            dt_prob = ind_scores["decision_tree"]
 
             iso_thresh = float(manifest.get("anomaly_threshold", 0.0))
             iso_score = float(models["isolation_forest"].decision_function(feat_df)[0])
             iso_flag = int(iso_score < iso_thresh)
 
-            w_rf = float(manifest.get("ensemble_weights", {}).get("rf", 0.5))
+            weights_dict = manifest.get("ensemble_weights", {"rf": 0.40, "xgb": 0.40, "dt": 0.10, "iso": 0.10})
             calibrator = models["calibrator"]
             cal_method = manifest.get("calibration_method", "isotonic")
 
-            calibrated_arr = score_risk(rf_prob, xgb_prob, w_rf, calibrator, cal_method)
+            iso_risk_val = ind_scores["isolation_forest"]
+            calibrated_arr = score_risk(
+                p_HR_rf=rf_prob,
+                p_HR_xgb=xgb_prob,
+                p_HR_dt=dt_prob,
+                p_iso=iso_risk_val,
+                weights=weights_dict,
+                calibrator=calibrator,
+                cal_method=cal_method,
+            )
             ml_risk_score = float(np.clip(calibrated_arr[0], 0.0, 1.0))
             votes = model_votes(rf_prob, xgb_prob, dt_prob, iso_flag)
+
+        model_scores_obj = ModelScores(
+            decision_tree=round(float(ind_scores["decision_tree"]), 4),
+            random_forest=round(float(ind_scores["random_forest"]), 4),
+            xgboost=round(float(ind_scores["xgboost"]), 4),
+            isolation_forest=round(float(ind_scores["isolation_forest"]), 4),
+            ensemble=round(float(ml_risk_score), 4),
+        )
 
         feat_contributions = _calculate_feature_contributions(feat_vec)
 
@@ -161,6 +185,7 @@ async def analyze_plan(request: AnalyzeRequest) -> AnalyzeResponse:
             rule_hits=rule_hits,
             rationale=rationale,
             feature_contributions=feat_contributions,
+            model_scores=model_scores_obj,
             model_votes=votes,
             latency_ms=round(latency_ms, 2),
             audit_id=str(audit_id),
@@ -190,6 +215,13 @@ async def analyze_plan(request: AnalyzeRequest) -> AnalyzeResponse:
             rule_hits=["internal_error"],
             rationale=rationale,
             feature_contributions={},
+            model_scores=ModelScores(
+                decision_tree=1.0,
+                random_forest=1.0,
+                xgboost=1.0,
+                isolation_forest=1.0,
+                ensemble=1.0,
+            ),
             model_votes={},
             latency_ms=round(latency_ms, 2),
             audit_id=str(audit_id),

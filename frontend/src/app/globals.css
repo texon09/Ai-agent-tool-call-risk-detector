@@ -3,14 +3,103 @@
 @tailwind utilities;
 
 :root {
-  --background: #0f172a;
-  --foreground: #f8fafc;
+  /* Rich deep charcoal & slate palette (elevated from pure pitch-black) */
+  --bg: #111216;
+  --surface: #18191E;
+  --surface-2: #202229;
+  --surface-3: #272A33;
+  --border: #2C2F38;
+  --border-str: #3D414D;
+  --text: #EDEDF0;
+  --text-muted: #9DA1AD;
+  --text-dim: #676B79;
+
+  /* Semantic Security Decision Accents */
+  --allow: #52B788;
+  --confirm: #E5A83B;
+  --revise: #E07A5F;
+  --block: #E63946;
+
+  /* Accent washes */
+  --allow-bg: rgba(82, 183, 136, 0.10);
+  --confirm-bg: rgba(229, 168, 59, 0.10);
+  --revise-bg: rgba(224, 122, 95, 0.10);
+  --block-bg: rgba(230, 57, 70, 0.10);
+
+  /* Primary Interactive & Brand Tokens (Technical Amber Gold) */
+  --brand: #E5A83B;
+  --brand-hover: #F0B84D;
+  --brand-glow: rgba(229, 168, 59, 0.16);
+  --brand-text: #111216;
+  --panel-accent: #2B261D;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  margin: 0;
-  padding: 0;
+  background-color: var(--bg);
+  /* Subtle technical grid texture to lift the flat black aesthetic */
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(229, 168, 59, 0.04) 0%, transparent 60%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+  color: var(--text);
+  font-family: var(--font-sans), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar matching hairline styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-str);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* Keyframe for subtle border pulse on decision banner */
+@keyframes decision-pulse {
+  0% {
+    border-color: var(--border-str);
+  }
+  50% {
+    border-color: currentColor;
+  }
+  100% {
+    border-color: currentColor;
+  }
+}
+
+.animate-decision-pulse {
+  animation: decision-pulse 300ms ease-out 1;
+}
+
+/* Subtle fade in for cards */
+@keyframes card-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: card-fade 180ms ease-out forwards;
 }

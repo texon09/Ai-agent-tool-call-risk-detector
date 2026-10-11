@@ -15,7 +15,7 @@
     "write_step_count",
     "has_irreversible_step",
     "irreversible_step_count",
-    "total_estimated_cost",
+    "sensitive_to_egress",
     "max_step_cost",
     "perm_required_count",
     "perm_admin_count",
@@ -29,7 +29,7 @@
     "sens_count_restricted",
     "sens_count_secret",
     "has_sensitive_data",
-    "arg_total_length",
+    "untrusted_to_privileged",
     "arg_max_length",
     "arg_sql_keyword_count",
     "arg_path_traversal_count",
@@ -50,8 +50,10 @@
     "HIGH-RISK"
   ],
   "ensemble_weights": {
-    "rf": 0.0,
-    "xgb": 1.0
+    "rf": 0.4,
+    "xgb": 0.4,
+    "dt": 0.1,
+    "iso": 0.1
   },
   "calibration_method": "isotonic",
   "thresholds": {
@@ -87,10 +89,10 @@
       "actual_safe_fpr": 0.0
     }
   },
-  "anomaly_threshold": -0.07322470523500368,
+  "anomaly_threshold": -0.09147810277907598,
   "hyperparameters": {
     "dt": {
-      "max_depth": 3,
+      "max_depth": 6,
       "class_weight": "balanced"
     },
     "rf": {
@@ -117,8 +119,8 @@
     46
   ],
   "sha256": {
-    "train_features.csv": "803fd205dfadb63cf4f067315174b32aec6af1c9c0d4965c999958761a0188eb",
-    "val_features.csv": "ce13c76572bed18a2df7926104552086e6bd301efab69f83928feac4fc6694ce"
+    "train_features.csv": "bdf824e663845d7269b8c37f68e7ce220cb6bcb27a9349168a99cf81df9d7734",
+    "val_features.csv": "251334b2990aad6c0129a4d036f585d5a2cdf1375190d77e9801ad90acdc0c6a"
   },
   "row_counts": {
     "train_features.csv": 3835,
@@ -127,17 +129,17 @@
   "test_files": "not used in training",
   "constant_feature_names": [],
   "library_versions": {
-    "numpy": "2.4.4",
-    "pandas": "3.0.5",
+    "numpy": "1.26.4",
+    "pandas": "2.2.2",
     "xgboost": "3.4.1",
-    "joblib": "1.5.3"
+    "joblib": "1.4.2"
   },
-  "created_at": "2026-10-11T15:37:55.896754Z",
+  "created_at": "2026-10-11T20:12:36.502322Z",
   "joblib_sha256": {
-    "decision_tree.joblib": "c847df9b67e55c8d675ae0b58255ef89041c749fa97edfdbd963889ec798b723",
-    "random_forest.joblib": "dae3a67c37be8a50225204e0100f59245017b580b1aae12d599e19fdfee77853",
-    "xgboost.joblib": "f1e20ec339f34d1e08bbfeb362faae13adf115a2e9061262589b750f9c7185e8",
-    "isolation_forest.joblib": "e85d622ee53fc1955895ea193d9340c28a231df8511fce8a186dc4c2748e2960",
-    "calibrator.joblib": "875695f7e89f3d8d551864b77b90f5e54abc04d765ec8a3d60d386a23718c974"
+    "decision_tree.joblib": "9c162291aa2e07a3dd7f29c0a9ecf04253cdbb4908173905d6ceadc15ff67a58",
+    "random_forest.joblib": "c96edcf2c5b572dcc8cf11ab2fb037eacdbaed83d86dcb384890f797296d6f5c",
+    "xgboost.joblib": "6593eb60a60ccb7c3987358209c671964077836cef7f0ae7e5b0c66987492337",
+    "isolation_forest.joblib": "b0656945439e13735ff3ee333bb2a165fe4f54fb1c2ee0483612bd36081fbb8c",
+    "calibrator.joblib": "d1a76edac82a97f50e62a213a8fc618720e4d3888ad3826b94055b461cc98f6a"
   }
 }

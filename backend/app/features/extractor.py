@@ -1,4 +1,4 @@
-"""Plan feature extractor producing 42-feature numerical vectors for ML inference."""
+"""Plan feature extractor producing canonical numerical vectors for ML inference."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ KNOWN_TOOLS = {
     "directory_search": "tool_directory_search_count",
 }
 
+# Exactly 42 canonical features with length/cost shortcuts replaced by high-signal semantic interaction features
 FEATURE_NAMES = [
     "step_count",
     "unique_tool_count",
@@ -41,7 +42,7 @@ FEATURE_NAMES = [
     "write_step_count",
     "has_irreversible_step",
     "irreversible_step_count",
-    "total_estimated_cost",
+    "sensitive_to_egress",       # High-signal semantic feature (replaces total_estimated_cost shortcut)
     "max_step_cost",
     "perm_required_count",
     "perm_admin_count",
@@ -55,7 +56,7 @@ FEATURE_NAMES = [
     "sens_count_restricted",
     "sens_count_secret",
     "has_sensitive_data",
-    "arg_total_length",
+    "untrusted_to_privileged",   # High-signal semantic feature (replaces arg_total_length shortcut)
     "arg_max_length",
     "arg_sql_keyword_count",
     "arg_path_traversal_count",
@@ -85,7 +86,6 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
 
     write_count = 0.0
     irrev_count = 0.0
-    total_cost = 0.0
     max_cost = 0.0
 
     perm_count = 0.0
@@ -102,7 +102,6 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
     sens_rest = 0.0
     sens_sec = 0.0
 
-    arg_tot_len = 0.0
     arg_max_len = 0.0
     sql_hits = 0.0
     traversal_hits = 0.0
@@ -115,6 +114,12 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
     recon_count = 0.0
     access_count = 0.0
     exfil_count = 0.0
+
+    seen_sensitive_read = False
+    sensitive_to_egress = 0.0
+
+    prior_untrusted = False
+    untrusted_to_privileged = 0.0
 
     for step in steps:
         if not isinstance(step, dict):
@@ -136,7 +141,6 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
             irrev_count += 1.0
 
         cost = float(step.get("estimated_cost", 0.0) or 0.0)
-        total_cost += cost
         if cost > max_cost:
             max_cost = cost
 
@@ -168,7 +172,33 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
         elif sens in {"secret", "top-secret"}:
             sens_sec += 1.0
 
+        # Sequence interaction: sensitive read followed by egress
+        is_step_sens_read = (sens in {"confidential", "restricted", "secret", "top-secret"}) and (
+            side_effect == "read" or tool_name in {"file_read", "database_query"}
+        )
+        if seen_sensitive_read and (dest == "external" or tool_name in {"http_post", "email_send"}):
+            sensitive_to_egress = 1.0
+        if is_step_sens_read:
+            seen_sensitive_read = True
+
+        # Sequence interaction: untrusted input to privileged action
+        trust = str(step.get("output_trust", step.get("source_trust", ""))).casefold()
+        is_untrusted = trust == "untrusted" or step.get("trusted") is False or step.get("untrusted") is True
+        is_privileged = side_effect in {"write", "delete", "execute"} or tool_name in {"file_write", "http_post", "email_send", "shell_exec"} or perm_admin > 0
+        if prior_untrusted and is_privileged:
+            untrusted_to_privileged = 1.0
+        if is_untrusted:
+            prior_untrusted = True
+
         stage = str(step.get("kill_chain_stage", "")).casefold()
+        if not stage:
+            if tool_name in {"shell_exec", "database_query"} or side_effect in {"execute", "delete"}:
+                stage = "execution"
+            elif tool_name in {"file_read", "directory_search"}:
+                stage = "access"
+            elif tool_name in {"http_post", "email_send"} and dest == "external":
+                stage = "exfiltration"
+
         if stage in {"recon", "discovery"}:
             recon_count += 1.0
         elif stage in {"access", "execution"}:
@@ -180,7 +210,6 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
         args = step.get("arguments", {})
         arg_str = json.dumps(args, ensure_ascii=False) if isinstance(args, (dict, list)) else str(args)
         arg_len = len(arg_str)
-        arg_tot_len += arg_len
         if arg_len > arg_max_len:
             arg_max_len = float(arg_len)
 
@@ -192,7 +221,7 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
             traversal_hits += 1.0
         if SENSITIVE_PATH_RE.search(arg_str):
             sens_path_hits += 1.0
-        if "http://" in arg_str or "attacker.example" in arg_str:
+        if "http://" in arg_str or "attacker.example" in arg_str or "attacker.com" in arg_str:
             susp_url_hits += 1.0
         if BASE64_RE.search(arg_str):
             encoded_hits += 1.0
@@ -200,6 +229,10 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
             cred_hits += 1.0
         if PII_RE.search(arg_str):
             pii_hits += 1.0
+
+    # Fallback heuristic: single step with both sensitive data and external egress
+    if (sens_conf + sens_rest + sens_sec > 0 or cred_hits > 0 or sens_path_hits > 0) and (dest_ext > 0 or tool_counts["tool_http_post_count"] > 0 or tool_counts["tool_email_send_count"] > 0):
+        sensitive_to_egress = 1.0
 
     # MCP metadata
     mcp_server = 1.0 if (mcp_meta and mcp_meta.get("server_name")) else 0.0
@@ -220,7 +253,7 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
         "write_step_count": write_count,
         "has_irreversible_step": 1.0 if irrev_count > 0 else 0.0,
         "irreversible_step_count": irrev_count,
-        "total_estimated_cost": total_cost,
+        "sensitive_to_egress": float(sensitive_to_egress),
         "max_step_cost": max_cost,
         "perm_required_count": perm_count,
         "perm_admin_count": perm_admin,
@@ -234,7 +267,7 @@ def extract_features_dict(plan: dict[str, Any], mcp_meta: dict[str, Any] | None 
         "sens_count_restricted": sens_rest,
         "sens_count_secret": sens_sec,
         "has_sensitive_data": 1.0 if (sens_conf + sens_rest + sens_sec) > 0 else 0.0,
-        "arg_total_length": arg_tot_len,
+        "untrusted_to_privileged": float(untrusted_to_privileged),
         "arg_max_length": arg_max_len,
         "arg_sql_keyword_count": sql_hits,
         "arg_path_traversal_count": traversal_hits,

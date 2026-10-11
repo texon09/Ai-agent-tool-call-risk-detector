@@ -17,28 +17,34 @@ DIFFICULTIES = ["easy", "medium", "hard"]
 
 
 def generate_feature_row(label, family, rng):
-    """Generate a realistic 42-feature row based on risk label and threat family."""
+    """Generate a realistic 42-feature row based on risk label and threat family.
+
+    Removes length/cost proxies by ensuring 35-40% of HIGH-RISK plans are short (1-3 steps),
+    and a significant portion of SAFE plans are multi-step (3-6 steps) with varied costs.
+    """
     row = {}
+    is_short_attack = False
 
     if label == "SAFE":
-        step_count = rng.integers(1, 6)
+        # Safe plans range from 1 to 6 steps, with varying costs (up to $15)
+        step_count = rng.integers(1, 7)
         unique_tools = min(step_count, rng.integers(1, 4))
-        is_write = rng.choice([0.0, 1.0], p=[0.75, 0.25])
-        write_steps = int(is_write * rng.integers(1, 3))
+        is_write = rng.choice([0.0, 1.0], p=[0.7, 0.3])
+        write_steps = int(is_write * rng.integers(1, min(3, step_count + 1)))
         irrev = 0.0 if rng.random() > 0.05 else 1.0
-        cost = float(np.round(rng.uniform(0.01, 5.0) * step_count, 2))
-        perms = rng.integers(0, 3)
+        max_cost = float(np.round(rng.uniform(0.01, 8.0), 2))
+        perms = rng.integers(0, 4)
         admin_perms = 0.0
-        ext_perms = float(rng.choice([0, 1], p=[0.9, 0.1]))
+        ext_perms = float(rng.choice([0, 1], p=[0.85, 0.15]))
         fs_perms = float(rng.choice([0, 1, 2], p=[0.6, 0.3, 0.1]))
-        dest_ext = float(rng.choice([0, 1], p=[0.85, 0.15]))
+        dest_ext = float(rng.choice([0, 1], p=[0.8, 0.2]))
         ip_lit = 0.0
         sens_pub = float(rng.integers(0, step_count + 1))
         sens_int = float(rng.integers(0, 2))
         sens_conf = 0.0
         sens_rest = 0.0
         sens_sec = 0.0
-        arg_len = float(rng.integers(20, 200))
+        arg_len = float(rng.integers(15, 300))
         sql = float(rng.choice([0, 1], p=[0.95, 0.05]))
         traversal = 0.0
         sens_path = 0.0
@@ -49,13 +55,15 @@ def generate_feature_row(label, family, rng):
         recon = float(rng.choice([0, 1], p=[0.8, 0.2]))
         access = float(rng.choice([0, 1], p=[0.8, 0.2]))
         exfil = 0.0
+        sens_to_egress = 0.0
+        untrusted_to_priv = 0.0
     elif label == "SUSPICIOUS":
-        step_count = rng.integers(3, 10)
+        step_count = rng.integers(2, 8)
         unique_tools = min(step_count, rng.integers(2, 5))
         is_write = float(rng.choice([0.0, 1.0], p=[0.5, 0.5]))
         write_steps = int(is_write * rng.integers(1, 4))
         irrev = float(rng.choice([0.0, 1.0], p=[0.7, 0.3]))
-        cost = float(np.round(rng.uniform(2.0, 25.0), 2))
+        max_cost = float(np.round(rng.uniform(1.0, 20.0), 2))
         perms = rng.integers(1, 6)
         admin_perms = float(rng.choice([0, 1], p=[0.85, 0.15]))
         ext_perms = float(rng.choice([0, 1, 2], p=[0.5, 0.3, 0.2]))
@@ -67,7 +75,7 @@ def generate_feature_row(label, family, rng):
         sens_conf = float(rng.choice([0, 1, 2], p=[0.5, 0.35, 0.15]))
         sens_rest = float(rng.choice([0, 1], p=[0.8, 0.2]))
         sens_sec = 0.0
-        arg_len = float(rng.integers(100, 600))
+        arg_len = float(rng.integers(50, 400))
         sql = float(rng.choice([0, 1, 2], p=[0.7, 0.2, 0.1]))
         traversal = float(rng.choice([0, 1], p=[0.85, 0.15]))
         sens_path = float(rng.choice([0, 1], p=[0.85, 0.15]))
@@ -78,45 +86,93 @@ def generate_feature_row(label, family, rng):
         recon = float(rng.choice([0, 1, 2], p=[0.4, 0.4, 0.2]))
         access = float(rng.choice([0, 1, 2], p=[0.4, 0.4, 0.2]))
         exfil = float(rng.choice([0, 1], p=[0.7, 0.3]))
+        sens_to_egress = 0.0
+        untrusted_to_priv = float(rng.choice([0, 1], p=[0.85, 0.15]))
     else:  # HIGH-RISK
-        step_count = rng.integers(4, 15)
-        unique_tools = min(step_count, rng.integers(3, 7))
-        is_write = 1.0
-        write_steps = rng.integers(1, 6)
-        irrev = float(rng.choice([0.0, 1.0], p=[0.3, 0.7]))
-        cost = float(np.round(rng.uniform(10.0, 150.0), 2))
-        perms = rng.integers(3, 10)
-        admin_perms = float(rng.choice([1, 2, 3], p=[0.4, 0.4, 0.2]))
-        ext_perms = float(rng.choice([1, 2, 3], p=[0.3, 0.4, 0.3]))
-        fs_perms = float(rng.choice([1, 2, 3], p=[0.3, 0.4, 0.3]))
-        dest_ext = float(rng.integers(1, 4))
-        ip_lit = float(rng.choice([0, 1, 2], p=[0.4, 0.4, 0.2]))
-        sens_pub = float(rng.integers(0, 2))
-        sens_int = float(rng.integers(1, 4))
-        sens_conf = float(rng.integers(1, 4))
-        sens_rest = float(rng.integers(1, 3))
-        sens_sec = float(rng.choice([0, 1, 2], p=[0.4, 0.4, 0.2]))
-        arg_len = float(rng.integers(300, 2500))
-        sql = float(rng.integers(1, 4)) if family == "injection_triggered" else float(rng.choice([0, 1, 2], p=[0.5, 0.3, 0.2]))
-        traversal = float(rng.integers(1, 3)) if family == "credential_harvesting" else float(rng.choice([0, 1], p=[0.5, 0.5]))
-        sens_path = float(rng.integers(1, 3)) if family in ["credential_harvesting", "privilege_escalation"] else float(rng.choice([0, 1], p=[0.6, 0.4]))
-        susp_url = float(rng.integers(1, 3)) if family == "data_exfiltration" else float(rng.choice([0, 1], p=[0.5, 0.5]))
-        encoded = float(rng.integers(1, 4)) if family == "destructive" else float(rng.choice([0, 1, 2], p=[0.4, 0.4, 0.2]))
-        cred = float(rng.integers(1, 3)) if family == "credential_harvesting" else float(rng.choice([0, 1], p=[0.5, 0.5]))
-        pii = float(rng.choice([0, 1, 2], p=[0.3, 0.4, 0.3]))
-        recon = float(rng.integers(1, 3))
-        access = float(rng.integers(1, 4))
-        exfil = float(rng.integers(1, 3)) if family == "data_exfiltration" else float(rng.choice([0, 1], p=[0.5, 0.5]))
+        # 35-40% of HIGH-RISK samples are short (1-3 steps, low cost, dense payload)
+        is_short_attack = rng.random() < 0.38
+        if is_short_attack:
+            step_count = rng.integers(1, 4)
+            unique_tools = min(step_count, rng.integers(1, 3))
+            is_write = 1.0 if family in ["destructive", "privilege_escalation"] else float(rng.choice([0.0, 1.0], p=[0.5, 0.5]))
+            write_steps = 1.0 if is_write else 0.0
+            irrev = 1.0 if family == "destructive" else float(rng.choice([0.0, 1.0], p=[0.4, 0.6]))
+            max_cost = float(np.round(rng.uniform(0.001, 0.5), 3))
+            perms = rng.integers(1, 4)
+            admin_perms = 1.0 if family in ["destructive", "privilege_escalation"] else float(rng.choice([0.0, 1.0], p=[0.7, 0.3]))
+            ext_perms = 1.0 if family == "data_exfiltration" else float(rng.choice([0.0, 1.0], p=[0.7, 0.3]))
+            fs_perms = 1.0 if family in ["credential_harvesting", "destructive"] else float(rng.choice([0.0, 1.0], p=[0.5, 0.5]))
+            dest_ext = 1.0 if family == "data_exfiltration" else float(rng.choice([0.0, 1.0], p=[0.7, 0.3]))
+            ip_lit = float(rng.choice([0.0, 1.0], p=[0.6, 0.4]))
+            sens_pub = float(rng.integers(0, 2))
+            sens_int = 0.0
+            sens_conf = float(rng.integers(1, 3)) if family == "data_exfiltration" else float(rng.choice([0.0, 1.0], p=[0.7, 0.3]))
+            sens_rest = float(rng.choice([1.0, 2.0], p=[0.7, 0.3])) if family == "credential_harvesting" else float(rng.choice([0.0, 1.0], p=[0.8, 0.2]))
+            sens_sec = float(rng.choice([0.0, 1.0], p=[0.7, 0.3]))
+            arg_len = float(rng.integers(40, 180))
+            sql = 1.0 if family == "injection_triggered" else 0.0
+            traversal = 1.0 if family == "credential_harvesting" and rng.random() > 0.5 else 0.0
+            sens_path = 1.0 if family == "credential_harvesting" else 0.0
+            susp_url = 1.0 if family == "data_exfiltration" and rng.random() > 0.3 else 0.0
+            encoded = 1.0 if (family == "destructive" and rng.random() > 0.5) else 0.0
+            cred = 1.0 if family == "credential_harvesting" else float(rng.choice([0.0, 1.0], p=[0.8, 0.2]))
+            pii = float(rng.choice([0.0, 1.0], p=[0.7, 0.3]))
+            recon = 0.0
+            access = 1.0
+            exfil = 1.0 if family == "data_exfiltration" else 0.0
+            sens_to_egress = 1.0 if (dest_ext > 0 and (sens_conf + sens_rest + sens_sec > 0 or cred > 0)) else 0.0
+            untrusted_to_priv = 1.0 if (family in ["privilege_escalation", "injection_triggered"]) else 0.0
+        else:
+            step_count = rng.integers(4, 12)
+            unique_tools = min(step_count, rng.integers(2, 6))
+            is_write = 1.0
+            write_steps = rng.integers(1, 5)
+            irrev = float(rng.choice([0.0, 1.0], p=[0.3, 0.7]))
+            max_cost = float(np.round(rng.uniform(2.0, 30.0), 2))
+            perms = rng.integers(2, 8)
+            admin_perms = float(rng.choice([0, 1, 2], p=[0.5, 0.3, 0.2]))
+            ext_perms = float(rng.choice([1, 2], p=[0.5, 0.5]))
+            fs_perms = float(rng.choice([1, 2], p=[0.5, 0.5]))
+            dest_ext = float(rng.integers(1, 4))
+            ip_lit = float(rng.choice([0, 1], p=[0.5, 0.5]))
+            sens_pub = float(rng.integers(0, 2))
+            sens_int = float(rng.integers(1, 3))
+            sens_conf = float(rng.integers(1, 3))
+            sens_rest = float(rng.integers(1, 3))
+            sens_sec = float(rng.choice([0, 1, 2], p=[0.5, 0.3, 0.2]))
+            arg_len = float(rng.integers(150, 800))
+            sql = float(rng.integers(1, 3)) if family == "injection_triggered" else float(rng.choice([0, 1], p=[0.6, 0.4]))
+            traversal = float(rng.integers(1, 2)) if family == "credential_harvesting" else float(rng.choice([0, 1], p=[0.6, 0.4]))
+            sens_path = float(rng.integers(1, 2)) if family in ["credential_harvesting", "privilege_escalation"] else float(rng.choice([0, 1], p=[0.6, 0.4]))
+            susp_url = float(rng.integers(1, 2)) if family == "data_exfiltration" else float(rng.choice([0, 1], p=[0.6, 0.4]))
+            encoded = float(rng.integers(1, 3)) if family == "destructive" else float(rng.choice([0, 1], p=[0.6, 0.4]))
+            cred = float(rng.integers(1, 2)) if family == "credential_harvesting" else float(rng.choice([0, 1], p=[0.6, 0.4]))
+            pii = float(rng.choice([0, 1, 2], p=[0.4, 0.4, 0.2]))
+            recon = float(rng.integers(1, 3))
+            access = float(rng.integers(1, 3))
+            exfil = float(rng.integers(1, 3)) if family == "data_exfiltration" else float(rng.choice([0, 1], p=[0.6, 0.4]))
+            sens_to_egress = 1.0 if (dest_ext > 0 and (sens_conf + sens_rest + sens_sec > 0 or cred > 0)) else 0.0
+            untrusted_to_priv = 1.0 if (family in ["privilege_escalation", "injection_triggered"]) else float(rng.choice([0, 1], p=[0.7, 0.3]))
 
     # Distribute tool calls
-    tool_db = float(rng.integers(0, step_count))
-    tool_fread = float(rng.integers(0, step_count))
-    tool_fwrite = float(write_steps)
-    tool_http = float(dest_ext)
-    tool_email = float(rng.choice([0, 1], p=[0.8, 0.2]))
-    tool_shell = float(admin_perms)
-    tool_dir = float(recon)
-    tool_unk = float(rng.choice([0, 1], p=[0.95, 0.05]))
+    if is_short_attack and label == "HIGH-RISK":
+        tool_db = 1.0 if (family in ["data_exfiltration", "injection_triggered"] and rng.random() > 0.5) else 0.0
+        tool_fread = 1.0 if (family == "credential_harvesting" or (family == "data_exfiltration" and tool_db == 0.0)) else 0.0
+        tool_fwrite = float(write_steps)
+        tool_http = float(dest_ext)
+        tool_email = float(rng.choice([0, 1], p=[0.8, 0.2])) if dest_ext > 0 else 0.0
+        tool_shell = 1.0 if family in ["destructive", "privilege_escalation"] else float(admin_perms)
+        tool_dir = float(recon)
+        tool_unk = 0.0
+    else:
+        tool_db = float(rng.integers(0, max(2, step_count)))
+        tool_fread = float(rng.integers(0, max(2, step_count)))
+        tool_fwrite = float(write_steps)
+        tool_http = float(dest_ext)
+        tool_email = float(rng.choice([0, 1], p=[0.8, 0.2]))
+        tool_shell = float(admin_perms)
+        tool_dir = float(recon)
+        tool_unk = float(rng.choice([0, 1], p=[0.95, 0.05]))
 
     row["step_count"] = float(step_count)
     row["unique_tool_count"] = float(unique_tools)
@@ -131,9 +187,9 @@ def generate_feature_row(label, family, rng):
     row["has_write_operation"] = float(is_write)
     row["write_step_count"] = float(write_steps)
     row["has_irreversible_step"] = float(irrev)
-    row["irreversible_step_count"] = float(irrev * rng.integers(1, 3))
-    row["total_estimated_cost"] = float(cost)
-    row["max_step_cost"] = float(np.round(cost / max(1, step_count) * rng.uniform(1.1, 2.5), 2))
+    row["irreversible_step_count"] = max(1.0, float(irrev * rng.integers(1, 3))) if irrev > 0 else 0.0
+    row["sensitive_to_egress"] = float(sens_to_egress)
+    row["max_step_cost"] = float(max_cost)
     row["perm_required_count"] = float(perms)
     row["perm_admin_count"] = float(admin_perms)
     row["perm_network_ext_count"] = float(ext_perms)
@@ -146,8 +202,8 @@ def generate_feature_row(label, family, rng):
     row["sens_count_restricted"] = float(sens_rest)
     row["sens_count_secret"] = float(sens_sec)
     row["has_sensitive_data"] = float(1.0 if (sens_conf + sens_rest + sens_sec) > 0 else 0.0)
-    row["arg_total_length"] = float(arg_len)
-    row["arg_max_length"] = float(np.round(arg_len / max(1, step_count) * rng.uniform(1.2, 2.0), 1))
+    row["untrusted_to_privileged"] = float(untrusted_to_priv)
+    row["arg_max_length"] = float(arg_len)
     row["arg_sql_keyword_count"] = float(sql)
     row["arg_path_traversal_count"] = float(traversal)
     row["arg_sensitive_path_count"] = float(sens_path)
@@ -223,10 +279,7 @@ def main():
     df_test.to_csv(os.path.join(data_dir, "test_features.csv"), index=False)
 
     # 2. LOFO Splits for 5 Families
-    # lofo_test_{fam}.csv: 300 rows, all HIGH-RISK, all family == fam
-    # lofo_train_{fam}.csv: 5200 rows, total 5500 per family
     for fam in FAMILIES:
-        # Test split: 300 rows of family
         te_rows = []
         for i in range(300):
             row = generate_feature_row("HIGH-RISK", fam, rng)
@@ -239,10 +292,8 @@ def main():
         df_lofo_te = pd.DataFrame(te_rows)[feature_cols + ["label", "family", "difficulty", "plan_id", "task_id"]]
         df_lofo_te.to_csv(os.path.join(data_dir, f"lofo_test_{fam}.csv"), index=False)
 
-        # Train split: 5200 rows (without fam)
         other_fams = [f for f in FAMILIES if f != fam]
         tr_rows = []
-        # Mix: SAFE (3400), SUSPICIOUS (500), HIGH-RISK of other families (1300) = 5200
         for i in range(3400):
             row = generate_feature_row("SAFE", None, rng)
             row["label"] = "SAFE"
@@ -275,7 +326,6 @@ def main():
     # 3. Adversarial Features (30 rows)
     adv_rows = []
     for i in range(30):
-        # subtle or boundary attacks
         label = "HIGH-RISK" if i < 20 else "SAFE"
         fam = rng.choice(FAMILIES) if label == "HIGH-RISK" else None
         row = generate_feature_row(label, fam, rng)

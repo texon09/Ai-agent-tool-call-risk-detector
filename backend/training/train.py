@@ -176,27 +176,20 @@ def main():
         iso.fit(X_tr_safe)
 
         # VAL evaluation
+        p_dt = dt.predict_proba(X_val)[:, 2]
         p_rf = rf.predict_proba(X_val)[:, 2]
         p_xgb = xgb_m.predict_proba(X_val)[:, 2]
 
-        best_w = 0.0
-        best_rec = -1.0
-        best_cal = None
-        best_cal_method = ""
+        iso_scores_val = iso.decision_function(X_val)
+        iso_min, iso_max = np.min(iso_scores_val), np.max(iso_scores_val)
+        p_iso = 1.0 - (iso_scores_val - iso_min) / max(1e-6, (iso_max - iso_min))
 
-        for w_rf in [0.0, 0.25, 0.5, 0.75, 1.0]:
-            raw = w_rf * p_rf + (1.0 - w_rf) * p_xgb
-            cal, method = fit_calibrator(y_val_str, raw)
-            cal_scores = apply_calibrator(cal, method, raw)
-            rec = recall_at_fpr(y_val_str, cal_scores, 0.05)
-            if rec > best_rec:
-                best_rec = rec
-                best_w = w_rf
-                best_cal = cal
-                best_cal_method = method
+        ensemble_weights = {"rf": 0.40, "xgb": 0.40, "dt": 0.10, "iso": 0.10}
+        raw = 0.40 * p_rf + 0.40 * p_xgb + 0.10 * p_dt + 0.10 * p_iso
+        best_cal, best_cal_method = fit_calibrator(y_val_str, raw)
+        best_w = 0.40
 
         # Operating points
-        raw = best_w * p_rf + (1.0 - best_w) * p_xgb
         cal_scores = apply_calibrator(best_cal, best_cal_method, raw)
 
         ops = {}
@@ -283,7 +276,7 @@ def main():
                 "version": args.version,
                 "feature_names": features,
                 "class_order": CLASS_ORDER,
-                "ensemble_weights": {"rf": best_w, "xgb": 1.0 - best_w},
+                "ensemble_weights": {"rf": 0.40, "xgb": 0.40, "dt": 0.10, "iso": 0.10},
                 "calibration_method": best_cal_method,
                 "thresholds": {
                     "t_medium": None,

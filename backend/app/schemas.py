@@ -15,6 +15,16 @@ class AnalyzeRequest(BaseModel):
     mcp_meta: Optional[MCPMeta] = None
 
 
+class ModelScores(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
+    decision_tree: float
+    random_forest: float
+    xgboost: float
+    isolation_forest: float
+    ensemble: float
+
+
 class AnalyzeResponse(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -24,6 +34,7 @@ class AnalyzeResponse(BaseModel):
     rule_hits: List[str] = Field(default_factory=list)
     rationale: str
     feature_contributions: Dict[str, float] = Field(default_factory=dict)
+    model_scores: ModelScores
     model_votes: Dict[str, Any] = Field(default_factory=dict)
     latency_ms: float = 0.0
     audit_id: str = ""
@@ -35,6 +46,13 @@ class AnalyzeResponse(BaseModel):
             self.decision = self.action
         if self.score is None:
             self.score = self.risk_score
+        if not self.model_votes and self.model_scores:
+            self.model_votes = {
+                "rf_prob": self.model_scores.random_forest,
+                "xgb_prob": self.model_scores.xgboost,
+                "dt_prob": self.model_scores.decision_tree,
+                "iso_flag": int(self.model_scores.isolation_forest >= 0.5),
+            }
 
 
 class RuleResult(BaseModel):

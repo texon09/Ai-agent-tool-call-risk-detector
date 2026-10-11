@@ -1,67 +1,19 @@
 /**
- * API client library for Next.js frontend interfacing with FastAPI Risk Detection API.
+ * API client library interfacing with the FastAPI risk detection service.
  */
+
+import {
+  AnalyzeResponse,
+  AuditRecord,
+  AuditVerifyResponse,
+  MetricsResponse,
+  Scenario,
+} from "./types";
+
+export * from "./types";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-export interface AnalyzeResponse {
-  action: "ALLOW" | "CONFIRM" | "REVISE" | "BLOCK";
-  decision?: string;
-  risk_score: number;
-  score?: number;
-  critical_violations: number;
-  rule_hits: string[];
-  rationale: string;
-  feature_contributions: Record<string, number>;
-  model_votes: {
-    rf_prob?: number;
-    xgb_prob?: number;
-    dt_prob?: number;
-    iso_flag?: number | boolean;
-  };
-  latency_ms: number;
-  audit_id: string;
-}
-
-export interface Scenario {
-  name: string;
-  description: string;
-  plan: Record<string, any>;
-  expected_decision: "ALLOW" | "CONFIRM" | "REVISE" | "BLOCK";
-}
-
-export interface ModelMetrics {
-  f1: number;
-  precision: number;
-  recall: number;
-  auroc: number;
-  latency_ms: number;
-}
-
-export interface MetricsResponse {
-  available: boolean;
-  models: Record<string, ModelMetrics>;
-  detail?: string;
-}
-
-export interface AuditRecord {
-  id: number;
-  audit_id: string;
-  trajectory_id: string;
-  timestamp: string;
-  prev_hash: string;
-  current_hash: string;
-  payload: string;
-  decision: string;
-  rationale: string;
-}
-
-export interface AuditVerifyResponse {
-  valid: boolean;
-  broken_at_id?: string | null;
-  reason: string;
-}
 
 export async function analyzePlan(
   plan: Record<string, any>,
@@ -79,7 +31,7 @@ export async function analyzePlan(
     }
     return await res.json();
   } catch (err: any) {
-    // Fail-closed in UI if backend is unreachable
+    // Fail-closed fallback if backend is unreachable
     return {
       action: "BLOCK",
       decision: "BLOCK",
@@ -89,7 +41,19 @@ export async function analyzePlan(
       rule_hits: ["backend_connection_error"],
       rationale: `Fail-closed: could not connect to risk engine (${err.message})`,
       feature_contributions: {},
-      model_votes: {},
+      model_scores: {
+        decision_tree: 1.0,
+        random_forest: 1.0,
+        xgboost: 1.0,
+        isolation_forest: 1.0,
+        ensemble: 1.0,
+      },
+      model_votes: {
+        rf_prob: 1.0,
+        xgb_prob: 1.0,
+        dt_prob: 1.0,
+        iso_flag: 1,
+      },
       latency_ms: 0,
       audit_id: "ui-fail-closed",
     };
@@ -126,7 +90,10 @@ export async function getAuditLog(
       `${API_BASE_URL}/api/audit?limit=${limit}&offset=${offset}`
     );
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.logs)) return data.logs;
+    return [];
   } catch {
     return [];
   }
