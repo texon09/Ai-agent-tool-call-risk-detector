@@ -19,6 +19,7 @@ data/**
 !data/**/
 !data/**/.gitkeep
 !data/processed/feature_list.json
+!data/processed/*.csv
 artifacts/**
 !artifacts/**/
 !artifacts/**/.gitkeep

@@ -38,6 +38,9 @@ jobs:
 
       - name: Validate Dataset
         run: |
+          if [ ! -f "data/processed/train_features.csv" ]; then
+            python -m backend.training.generate_synthetic_data
+          fi
           python -m backend.training.validate_dataset --data-dir data/processed
 
       - name: Run Pytest with Coverage
