@@ -1,0 +1,1 @@
+{"models": {"rf": {"f1": 0.9, "precision": 0.8, "recall": 0.95, "auroc": 0.97, "latency_ms": 2.5}}}

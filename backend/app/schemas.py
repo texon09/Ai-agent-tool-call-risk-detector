@@ -16,6 +16,8 @@ class AnalyzeRequest(BaseModel):
 
 
 class AnalyzeResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     action: str = Field(..., pattern="^(ALLOW|CONFIRM|REVISE|BLOCK)$")
     risk_score: float
     critical_violations: int = 0
@@ -57,6 +59,8 @@ class InspectorResult(BaseModel):
 
 
 class ModelMetrics(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     f1: float
     precision: float
     recall: float
