@@ -1,7 +1,6 @@
 import json
-import urllib.request
 import urllib.error
-import time
+import urllib.request
 
 BASE_URL = "http://127.0.0.1:8000"
 
@@ -27,7 +26,7 @@ def test_rate_limiter():
     success_count = 0
     rate_limited_count = 0
     
-    for i in range(130):
+    for _ in range(130):
         try:
             resp = urllib.request.urlopen(url)
             if resp.status == 200:

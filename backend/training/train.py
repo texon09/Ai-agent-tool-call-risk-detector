@@ -184,7 +184,6 @@ def main():
         iso_min, iso_max = np.min(iso_scores_val), np.max(iso_scores_val)
         p_iso = 1.0 - (iso_scores_val - iso_min) / max(1e-6, (iso_max - iso_min))
 
-        ensemble_weights = {"rf": 0.40, "xgb": 0.40, "dt": 0.10, "iso": 0.10}
         raw = 0.40 * p_rf + 0.40 * p_xgb + 0.10 * p_dt + 0.10 * p_iso
         best_cal, best_cal_method = fit_calibrator(y_val_str, raw)
         best_w = 0.40

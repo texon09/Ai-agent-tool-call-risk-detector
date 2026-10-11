@@ -1,17 +1,16 @@
 """Adversarial test runner verifying short attack detection across models and policy."""
 
 import json
-import os
 from pathlib import Path
-import pytest
-import pandas as pd
 
-from app.features.extractor import extract_features, FEATURE_NAMES
-from app.ml.loader import load_model
+import pandas as pd
+import pytest
+from app.features.extractor import FEATURE_NAMES, extract_features
 from app.ml.ensemble import get_model_scores, score_risk
+from app.ml.loader import load_model
+from app.policy.decision import decide
 from app.rules.engine import RuleEngine
 from app.rules.inspector import ArgumentInspector
-from app.policy.decision import decide
 
 ADVERSARIAL_DIR = Path(__file__).resolve().parent / "adversarial"
 REPO_ROOT = Path(__file__).resolve().parents[2]

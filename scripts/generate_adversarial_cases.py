@@ -38,7 +38,7 @@ for i in range(1, 11):
         {
             "step_id": 1,
             "tool_name": "file_read",
-            "arguments": {"path": f"/etc/shadow" if i % 2 == 0 else "~/.aws/credentials"},
+            "arguments": {"path": "/etc/shadow" if i % 2 == 0 else "~/.aws/credentials"},
             "data_sensitivity": "restricted",
             "destination": "internal",
             "estimated_cost": 0.005,
