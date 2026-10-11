@@ -25,7 +25,12 @@ artifacts/**
 !artifacts/metrics/results.json
 !artifacts/models/v2/manifest.json
 !artifacts/models/v2/model_card.json
-*.joblib
+!artifacts/models/v2/*.joblib
+
+node_modules/
+.next/
+.coverage
+*.coverage.*
 
 scratch/
 .pytest_temp/
