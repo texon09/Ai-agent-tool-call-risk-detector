@@ -9,10 +9,17 @@ from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_f
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
-from backend.app.ml.calibrate import apply_calibrator
-from backend.app.ml.loader import load_model
-from backend.training.data import CLASS_ORDER, load_feature_list, load_split
-from backend.training.metrics import group_bootstrap_ci, pr_auc, threshold_at_fpr
+try:
+    from backend.app.ml.calibrate import apply_calibrator
+    from backend.app.ml.loader import load_model
+    from backend.training.data import CLASS_ORDER, load_feature_list, load_split
+    from backend.training.metrics import group_bootstrap_ci, pr_auc, threshold_at_fpr
+except ImportError:
+    from app.ml.calibrate import apply_calibrator
+    from app.ml.loader import load_model
+    from training.data import CLASS_ORDER, load_feature_list, load_split
+    from training.metrics import group_bootstrap_ci, pr_auc, threshold_at_fpr
+
 
 
 def get_class_map():

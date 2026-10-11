@@ -16,9 +16,15 @@ from sklearn.model_selection import GroupKFold
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 
-from backend.app.ml.calibrate import apply_calibrator, fit_calibrator
-from backend.training.data import CLASS_ORDER, file_sha256, load_feature_list, load_split
-from backend.training.metrics import recall_at_fpr, threshold_at_fpr
+try:
+    from backend.app.ml.calibrate import apply_calibrator, fit_calibrator
+    from backend.training.data import CLASS_ORDER, file_sha256, load_feature_list, load_split
+    from backend.training.metrics import recall_at_fpr, threshold_at_fpr
+except ImportError:
+    from app.ml.calibrate import apply_calibrator, fit_calibrator
+    from training.data import CLASS_ORDER, file_sha256, load_feature_list, load_split
+    from training.metrics import recall_at_fpr, threshold_at_fpr
+
 
 
 def get_class_map():

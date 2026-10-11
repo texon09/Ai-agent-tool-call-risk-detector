@@ -18,9 +18,14 @@ Thumbs.db
 data/**
 !data/**/
 !data/**/.gitkeep
+!data/processed/feature_list.json
 artifacts/**
 !artifacts/**/
 !artifacts/**/.gitkeep
+!artifacts/metrics/results.json
+!artifacts/models/v2/manifest.json
+!artifacts/models/v2/model_card.json
 *.joblib
+
 scratch/
 .pytest_temp/

@@ -1,22 +1,32 @@
 FROM python:3.11-slim
 
+# Create dedicated non-root user
+RUN useradd -m -u 1000 appuser
+
 WORKDIR /app
 
-# Copy requirements and install
-COPY backend/requirements.txt .
+# Install dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy existing modules required by backend
-# We copy data and ml directories if they are needed by the backend
-COPY data/ /app/data/
-COPY ml/ /app/ml/
+# Copy application directories
 COPY backend/ /app/backend/
+COPY data/ /app/data/
+COPY artifacts/ /app/artifacts/
+
+# Prepare persistent data directory and permissions
+RUN mkdir -p /data && chown -R appuser:appuser /data /app
+
+# Environment configuration
+ENV DATABASE_URL="sqlite:////data/audit.db" \
+    CORS_ORIGINS="*" \
+    MODEL_DIR="/app/artifacts/models/v2" \
+    DATA_DIR="/app/data/processed" \
+    PYTHONPATH="/app/backend" \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app/backend
-
-# Create a volume for the SQLite database
-VOLUME /data
-ENV DATABASE_URL="sqlite:////data/audit.db"
+USER appuser
 
 EXPOSE 8000
 

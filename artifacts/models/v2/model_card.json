@@ -1,0 +1,38 @@
+{
+  "data_description": "Training data for risk detection.",
+  "val_metrics": {
+    "seed": 42,
+    "w_rf": 0.0,
+    "cal_method": "isotonic",
+    "ops": {
+      "1%": {
+        "threshold": 1.0,
+        "recall": 1.0,
+        "suspicious_share": 0.0,
+        "actual_safe_fpr": 0.0
+      },
+      "2%": {
+        "threshold": 1.0,
+        "recall": 1.0,
+        "suspicious_share": 0.0,
+        "actual_safe_fpr": 0.0
+      },
+      "5%": {
+        "threshold": 1.0,
+        "recall": 1.0,
+        "suspicious_share": 0.0,
+        "actual_safe_fpr": 0.0
+      },
+      "10%": {
+        "threshold": 1.0,
+        "recall": 1.0,
+        "suspicious_share": 0.0,
+        "actual_safe_fpr": 0.0
+      }
+    },
+    "iso_thresh": -0.07322470523500368,
+    "iso_susp_det": 0.8983050847457628,
+    "iso_hr_det": 1.0
+  },
+  "limitations": "synthetic-data shared assumptions, per-call baseline not trainable from plan-level data, policy thresholds deferred, 4 constant features, many train/test duplicate feature vectors and 31 conflicting-label groups"
+}

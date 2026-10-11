@@ -10,7 +10,11 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.tree import DecisionTreeClassifier
 
-from backend.training.data import CLASS_ORDER, load_feature_list
+try:
+    from backend.training.data import CLASS_ORDER, load_feature_list
+except ImportError:
+    from training.data import CLASS_ORDER, load_feature_list
+
 
 FAMILIES = [
     "data_exfiltration",
