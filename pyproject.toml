@@ -5,7 +5,8 @@ description = "AI Agent Tool-Call Risk Detector"
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "backend/tests"]
+pythonpath = [".", "backend"]
 
 [tool.ruff]
 target-version = "py311"

@@ -206,10 +206,7 @@ def get_lofo_families(data_dir: str) -> list:
     import os
 
     test_files = glob.glob(os.path.join(data_dir, "lofo_test_*.csv"))
-    fams = [
-        os.path.basename(f).replace("lofo_test_", "").replace(".csv", "")
-        for f in test_files
-    ]
+    fams = [os.path.basename(f).replace("lofo_test_", "").replace(".csv", "") for f in test_files]
     if len(fams) != 5:
         raise ValueError(f"Expected 5 LOFO families, found {len(fams)}")
     return fams
@@ -237,6 +234,7 @@ def main():
         res_file = os.path.join(args.metrics_dir, "results.json")
         backup = os.path.join(args.metrics_dir, "results_before_lofo_fix.json")
         import shutil
+
         if os.path.exists(res_file):
             shutil.copy(res_file, backup)
         with open(guard_file, "w") as f:
@@ -343,9 +341,7 @@ def main():
                 - e1_nr["Ensemble"].get("recall_at_thresh", 0)
             )
             > 0.05
-            or abs(
-                e1_full["Ensemble"].get("macro_f1", 0) - e1_nr["Ensemble"].get("macro_f1", 0)
-            )
+            or abs(e1_full["Ensemble"].get("macro_f1", 0) - e1_nr["Ensemble"].get("macro_f1", 0))
             > 0.05
         ):
             w = "TEST SCORES DEPEND ON TRAIN/TEST DUPLICATES"
@@ -403,7 +399,7 @@ def main():
             X_l_ts, y_l_ts_str, _ = load_split(ts_path, features)
 
             print(f"Encoding labels with manifest class_order: {manifest['class_order']}")
-            y_l_tr_int = np.array([manifest['class_order'].index(v) for v in y_l_tr_str])
+            y_l_tr_int = np.array([manifest["class_order"].index(v) for v in y_l_tr_str])
             dt = DecisionTreeClassifier(**manifest["hyperparameters"]["dt"], random_state=42)
             dt.fit(X_l_tr, y_l_tr_int)
             rf = RandomForestClassifier(**manifest["hyperparameters"]["rf"], random_state=42)
@@ -494,16 +490,17 @@ def main():
 
             if args.only == "lofo":
                 print(f"--- LOFO: {fam} ---")
-                
+
                 dt_preds = [manifest["class_order"][int(p)] for p in dt.predict(X_l_ts)]
                 rf_preds = [manifest["class_order"][int(p)] for p in rf.predict(X_l_ts)]
                 xgb_preds = [manifest["class_order"][int(p)] for p in xgb_m.predict(X_l_ts)]
-                
+
                 from collections import Counter
+
                 print(f"  DT class counts: {dict(Counter(dt_preds))}")
                 print(f"  RF class counts: {dict(Counter(rf_preds))}")
                 print(f"  XGB class counts: {dict(Counter(xgb_preds))}")
-                
+
                 print(
                     f"  Ensemble (Full) - (a) HR: {a_rec:.4f}, (b) NS: {b_rec:.4f}, "
                     f"(c) NS+Anom: {c_rec:.4f}"
@@ -512,7 +509,7 @@ def main():
                     f"  Ensemble (NR)   - (a) HR: {a_rec_nr:.4f}, (b) NS: {b_rec_nr:.4f}, "
                     f"(c) NS+Anom: {c_rec_nr:.4f}"
                 )
-                
+
                 iso_tr_safe = iso.decision_function(X_l_tr[y_l_tr_str == "SAFE"])
                 iso_tr_flag_rate = (
                     np.mean(iso_tr_safe < l_iso_thresh) if len(iso_tr_safe) > 0 else 0.0
@@ -614,7 +611,7 @@ def main():
                 else 0.0
             )
             results["test_per_family"][fam] = hr_rec
-            
+
         results["test_per_difficulty"] = {}
         if "difficulty" in meta_ts.columns:
             for diff in meta_ts["difficulty"].unique():
