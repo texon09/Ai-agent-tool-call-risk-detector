@@ -1,10 +1,11 @@
-import sqlite3
-import json
 import hashlib
+import json
+import sqlite3
 import threading
 from contextlib import closing
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List
+
 
 class AuditStore:
     def __init__(self, db_path: str = "audit.db"):

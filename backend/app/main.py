@@ -1,5 +1,5 @@
+from app.api import analyze, audit, health
 from fastapi import FastAPI
-from app.api import health, analyze, audit
 
 app = FastAPI(title="Risk Detection API")
 

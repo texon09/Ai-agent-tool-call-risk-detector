@@ -1,5 +1,6 @@
 from app.policy.decision import evaluate_policy
-from app.schemas import RuleResult, InspectorResult
+from app.schemas import RuleResult
+
 
 def test_policy_allow():
     res = evaluate_policy(0.1, [], [])

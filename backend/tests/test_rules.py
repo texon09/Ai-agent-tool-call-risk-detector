@@ -1,5 +1,6 @@
 from app.rules.engine import RuleEngine
 
+
 def test_rule_1_permission_check():
     engine = RuleEngine()
     plan_safe = {"steps": [{"tool_name": "database_query", "arguments": {"limit": 10}}]}

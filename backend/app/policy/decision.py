@@ -1,5 +1,6 @@
-from typing import List, Dict, Any
-from app.schemas import RuleResult, InspectorResult
+from typing import Any, Dict, List
+
+from app.schemas import InspectorResult, RuleResult
 
 # Thresholds
 TAU_BLOCK = 0.90

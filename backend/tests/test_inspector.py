@@ -1,5 +1,6 @@
 from app.rules.inspector import ArgumentInspector
 
+
 def test_credential_scanner():
     inspector = ArgumentInspector()
     

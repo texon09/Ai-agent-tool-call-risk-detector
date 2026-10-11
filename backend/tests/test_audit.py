@@ -1,7 +1,8 @@
-import pytest
-import sqlite3
 import os
+import sqlite3
+
 from app.audit.store import AuditStore
+
 
 def test_audit_store_logging_and_verification():
     test_db = "test_audit.db"

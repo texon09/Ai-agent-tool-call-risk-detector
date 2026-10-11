@@ -1,5 +1,7 @@
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from app.schemas import RuleResult
+
 
 class RuleEngine:
     ALLOWED_TOOLS = ["database_query", "file_read", "file_write", "http_post", "email_send", "shell_exec"]

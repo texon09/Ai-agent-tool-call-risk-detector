@@ -1,6 +1,8 @@
 import re
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from app.schemas import InspectorResult
+
 
 class ArgumentInspector:
     SCANNERS = [

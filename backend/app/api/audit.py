@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Query
-from typing import Dict, Any
+
 from app.audit.store import AuditStore
+from fastapi import APIRouter, Query
 
 router = APIRouter()
 audit_store = AuditStore(db_path="audit.db") # Use relative for now
